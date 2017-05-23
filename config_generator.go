@@ -12,6 +12,8 @@ type Config struct {
 	Template string
 	Dest string
 	templateFile string
+
+	file *os.File
 }
 
 var fns = template.FuncMap{
@@ -25,13 +27,23 @@ func (c *Config) Init() {
 		path.Base(c.Template),
 		c.Template,
 		"", 1)
+
+	c.file, err = os.OpenFile(c.Dest, os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.ModeAppend)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	defer c.file.Close()
 }
 
 func (c *Config) GenerateConfig(data []Property) {
+	if c.Template == "" {
+		return
+	}
+
 	t := template.Must(template.New(c.templateFile).Funcs(fns).ParseFiles(c.Template))
 
 	log.Printf("Regenerate config from %s", *srcTemplate)
-	err := t.Execute(os.Stdout, data); if err != nil {
+	err := t.Execute(c.file, data); if err != nil {
 		log.Panic(err.Error())
 	}
 }

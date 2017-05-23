@@ -24,17 +24,16 @@ var (
 	command      *string
 	aSync	     *bool
 
+	conn *zk.Conn
 	zookeeperProperties []Property
 	eventChannel        <-chan zk.Event
 	child               []string
-
-	commandExistence bool
 )
 
 func flags() {
 	zookeeper = flag.String("zookeeper", "192.168.120.81:2181,192.168.120.82:2181", "Zookeeper server list example: 192.168.120.1:2181,192.168.120.2:2181,..")
 	namespace = flag.String("namespace", "/watch", "Namespace to watch on")
-	srcTemplate = flag.String("srcTemplate", "", "srcTemplate absolut path")
+	srcTemplate = flag.String("template", "", "srcTemplate absolut path")
 	destConf = flag.String("destConf", "", "Generated config absolut path")
 	aSync = flag.Bool("aSync", false, "Asyncron command execution")
 	command = flag.String("cmd", "", "Command execute after regenerate config")
@@ -73,37 +72,44 @@ func main() {
 
 	conf := &Config{
 		Template: *srcTemplate,
+		Dest: *destConf,
 	}
 	conf.Init()
 
-	conn, _, _ := zk.Connect(strings.Split(*zookeeper, ","), time.Second)
+	conn, _, _ = zk.Connect(strings.Split(*zookeeper, ","), time.Second)
 	defer conn.Close()
 
 	log.Printf("connected to zookeepers: %v", *zookeeper)
 	log.Printf("Watch on: %s", *namespace)
 
+	eventChannel, zookeeperProperties = getChildW(*namespace)
+	conf.GenerateConfig(zookeeperProperties)
+
 	for true {
 		zookeeperProperties = []Property{}
-		_, _, eventChannel, _ = conn.ChildrenW(*namespace)
 
 		<-eventChannel
-		child, _, eventChannel, _ = conn.ChildrenW(*namespace)
-		for _, key := range child {
-			value, _, _ := conn.Get(fmt.Sprintf("%s/%s", *namespace, key))
-			if string(value) != "" { // bypass directory
-				zookeeperProperties = append(zookeeperProperties, Property{
-					Key:   key,
-					Value: string(value),
-				})
-			}
-		}
+		eventChannel, zookeeperProperties = getChildW(*namespace)
+		conf.GenerateConfig(zookeeperProperties)
+		cmd.Execute()
+	}
+}
 
-		if *srcTemplate != "" {
-			conf.GenerateConfig(zookeeperProperties)
-		}
-		
-		if commandExistence {
-			cmd.Execute()
+func getChildW(namespace string) (ch <- chan zk.Event, properties []Property) {
+
+	child, _, ch, _ = conn.ChildrenW(namespace)
+
+	for _, key := range child {
+		value, _, _ := conn.Get(fmt.Sprintf("%s/%s", namespace, key))
+
+		// bypass directory
+		if string(value) != "" {
+			properties = append(properties, Property{
+				Key:   key,
+				Value: string(value),
+			})
 		}
 	}
+
+	return
 }

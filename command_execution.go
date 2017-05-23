@@ -14,6 +14,10 @@ type Command struct {
 var err error
 
 func (c *Command) Execute() {
+	if c.Cmd == "" {
+		return
+	}
+
 	cmd := exec.Command(c.Cmd, c.Args...)
 
 	if c.Async {
