@@ -32,12 +32,18 @@ var (
 
 func flags() {
 	zookeeper = flag.String("zookeeper", "192.168.120.81:2181,192.168.120.82:2181", "Zookeeper server list example: 192.168.120.1:2181,192.168.120.2:2181,..")
-	namespace = flag.String("namespace", "/producer", "Namespace to watch on")
+	namespace = flag.String("namespace", "/watch", "Namespace to watch on")
 	templatePath = flag.String("template", "/etc/zkwatcher/tmp.txt", "Template absolut path")
-	command = flag.String("cmd", "", "Command execute after regenerate config")
 	aSync = flag.Bool("aSync", false, "Asyncron command execution")
+	command = flag.String("cmd", "", "Command execute after regenerate config")
 
 	flag.Parse()
+}
+
+var fns = template.FuncMap{
+	"plus1": func(x int) int {
+		return x + 1
+	},
 }
 
 func main() {
@@ -46,7 +52,7 @@ func main() {
 	splittedCommand := strings.Split(*command, " ")
 	commandExistence := len(splittedCommand) > 1
 
-	templateFile := template.Must(template.New("tmp.txt").ParseFiles(*templatePath))
+	templateFile := template.Must(template.New("tmp.txt").Funcs(fns).ParseFiles(*templatePath))
 
 	conn, _, _ := zk.Connect(strings.Split(*zookeeper, ","), time.Second)
 	defer conn.Close()
@@ -61,7 +67,7 @@ func main() {
 		<-eventChannel
 		child, _, eventChannel, _ = conn.ChildrenW(*namespace)
 		for _, key := range child {
-			value, _, _ := conn.Get(fmt.Sprintf("%s/%s", "/producer", key))
+			value, _, _ := conn.Get(fmt.Sprintf("%s/%s", *namespace, key))
 			if string(value) != "" { // bypass directory
 				zookeeperProperties = append(zookeeperProperties, Property{
 					Key:   key,
