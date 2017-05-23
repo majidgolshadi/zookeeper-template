@@ -3,10 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"html/template"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -21,38 +19,62 @@ type Property struct {
 var (
 	zookeeper    *string
 	namespace    *string
-	templatePath *string
+	srcTemplate *string
+	destConf     *string
 	command      *string
 	aSync	     *bool
 
 	zookeeperProperties []Property
 	eventChannel        <-chan zk.Event
 	child               []string
+
+	commandExistence bool
 )
 
 func flags() {
 	zookeeper = flag.String("zookeeper", "192.168.120.81:2181,192.168.120.82:2181", "Zookeeper server list example: 192.168.120.1:2181,192.168.120.2:2181,..")
 	namespace = flag.String("namespace", "/watch", "Namespace to watch on")
-	templatePath = flag.String("template", "/etc/zkwatcher/tmp.txt", "Template absolut path")
+	srcTemplate = flag.String("srcTemplate", "", "srcTemplate absolut path")
+	destConf = flag.String("destConf", "", "Generated config absolut path")
 	aSync = flag.Bool("aSync", false, "Asyncron command execution")
 	command = flag.String("cmd", "", "Command execute after regenerate config")
 
 	flag.Parse()
 }
 
-var fns = template.FuncMap{
-	"plus1": func(x int) int {
-		return x + 1
-	},
-}
-
 func main() {
 	flags()
 
-	splittedCommand := strings.Split(*command, " ")
-	commandExistence := len(splittedCommand) > 1
+	if *srcTemplate != "" && *destConf == "" {
+		println("destConf option must be set")
+		flag.Usage()
+		os.Exit(2)
+	}
 
-	templateFile := template.Must(template.New("tmp.txt").Funcs(fns).ParseFiles(*templatePath))
+	if *srcTemplate == "" && *destConf != "" {
+		println("srcTemplate option must be set")
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	if *command == "" && *srcTemplate == "" {
+		println("At least you have to set srcTemplate path or a command to execute after change event")
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	splittedCommand := strings.Split(*command, " ")
+	cmd := &Command{
+		Cmd: splittedCommand[0],
+		Args: splittedCommand[1:],
+		Async: *aSync,
+	}
+
+
+	conf := &Config{
+		Template: *srcTemplate,
+	}
+	conf.Init()
 
 	conn, _, _ := zk.Connect(strings.Split(*zookeeper, ","), time.Second)
 	defer conn.Close()
@@ -76,27 +98,12 @@ func main() {
 			}
 		}
 
-		log.Printf("Regenerate config from %s", *templatePath)
-		err := templateFile.Execute(os.Stdout, zookeeperProperties)
-		if err != nil {
-			log.Panic(err.Error())
+		if *srcTemplate != "" {
+			conf.GenerateConfig(zookeeperProperties)
 		}
-
+		
 		if commandExistence {
-			log.Printf("Execute command %s", *command)
-			cmd := exec.Command(splittedCommand[0], splittedCommand[1:]...)
-
-			if *aSync {
-				err = cmd.Start()
-			} else {
-				err = cmd.Run()
-			}
-
-			if err != nil {
-				log.Fatal(cmd.Stderr)
-			}
-
-			log.Print(cmd.Stdout)
+			cmd.Execute()
 		}
 	}
 }
