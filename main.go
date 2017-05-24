@@ -75,6 +75,7 @@ func main() {
 		Dest: *destConf,
 	}
 	conf.Init()
+	defer conf.Close()
 
 	conn, _, _ = zk.Connect(strings.Split(*zookeeper, ","), time.Second)
 	defer conn.Close()

@@ -18,3 +18,9 @@ zkwatcher Usage:
   -zookeeper string
         Zookeeper server list example: 192.168.120.1:2181,192.168.120.2:2181,.. (default "192.168.120.81:2181,192.168.120.82:2181")
 ```
+
+Template
+--------
+```bash
+[{{$n := len .}}{{range  $i, $e := .}}{{if $i}}, {{end}}{{if eq (plus1 $i) $n}}{{end}}"{{.Value}}"{{end}}].
+```

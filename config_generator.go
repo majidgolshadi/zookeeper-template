@@ -28,11 +28,10 @@ func (c *Config) Init() {
 		c.Template,
 		"", 1)
 
-	c.file, err = os.OpenFile(c.Dest, os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.ModeAppend)
+	c.file, err = os.OpenFile(c.Dest, os.O_CREATE|os.O_WRONLY, os.ModePerm)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	defer c.file.Close()
 }
 
 func (c *Config) GenerateConfig(data []Property) {
@@ -46,4 +45,8 @@ func (c *Config) GenerateConfig(data []Property) {
 	err := t.Execute(c.file, data); if err != nil {
 		log.Panic(err.Error())
 	}
+}
+
+func (c *Config) Close() {
+	c.file.Close()
 }
