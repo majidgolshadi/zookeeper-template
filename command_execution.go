@@ -6,8 +6,8 @@ import (
 )
 
 type Command struct {
-	Cmd string
-	Args []string
+	Cmd   string
+	Args  []string
 	Async bool
 }
 

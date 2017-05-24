@@ -17,14 +17,14 @@ type Property struct {
 }
 
 var (
-	zookeeper    *string
-	namespace    *string
+	zookeeper   *string
+	namespace   *string
 	srcTemplate *string
-	destConf     *string
-	command      *string
-	aSync	     *bool
+	destConf    *string
+	command     *string
+	aSync       *bool
 
-	conn *zk.Conn
+	conn                *zk.Conn
 	zookeeperProperties []Property
 	eventChannel        <-chan zk.Event
 	child               []string
@@ -64,15 +64,14 @@ func main() {
 
 	splittedCommand := strings.Split(*command, " ")
 	cmd := &Command{
-		Cmd: splittedCommand[0],
-		Args: splittedCommand[1:],
+		Cmd:   splittedCommand[0],
+		Args:  splittedCommand[1:],
 		Async: *aSync,
 	}
 
-
 	conf := &Config{
 		Template: *srcTemplate,
-		Dest: *destConf,
+		Dest:     *destConf,
 	}
 	conf.Init()
 	defer conf.Close()
@@ -96,7 +95,7 @@ func main() {
 	}
 }
 
-func getChildW(namespace string) (ch <- chan zk.Event, properties []Property) {
+func getChildW(namespace string) (ch <-chan zk.Event, properties []Property) {
 
 	child, _, ch, _ = conn.ChildrenW(namespace)
 

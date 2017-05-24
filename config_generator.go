@@ -1,16 +1,16 @@
 package main
 
 import (
-	"text/template"
-	"path"
-	"strings"
 	"log"
 	"os"
+	"path"
+	"strings"
+	"text/template"
 )
 
 type Config struct {
-	Template string
-	Dest string
+	Template     string
+	Dest         string
 	templateFile string
 
 	file *os.File
@@ -42,7 +42,8 @@ func (c *Config) GenerateConfig(data []Property) {
 	t := template.Must(template.New(c.templateFile).Funcs(fns).ParseFiles(c.Template))
 
 	log.Printf("Regenerate config from %s", *srcTemplate)
-	err := t.Execute(c.file, data); if err != nil {
+	err := t.Execute(c.file, data)
+	if err != nil {
 		log.Panic(err.Error())
 	}
 }
